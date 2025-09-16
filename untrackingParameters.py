@@ -51,7 +51,7 @@ class SilentURLCleaner:
             
             # YouTube
             'feature', 'kw', 'si', 'app', 'persist_app', 'noapp', 'has_verified',
-            'list', 'index', 'pp', 'source_ve_path', 'ab_channel',
+            'list', 'index', 'pp', 'source_ve_path', 'ab_channel', 'autoplay',
             
             # Amazon
             'tag', 'ref', 'ref_', 'pf_rd_m', 'pf_rd_s', 'pf_rd_r', 'pf_rd_t', 
@@ -175,7 +175,9 @@ class SilentURLCleaner:
             removed = []
             
             for param, values in query_params.items():
-                if param.lower() not in self.tracking_params:
+                # Now you can still copy the time stamp without the code deleting it
+                if (parsed.netloc in ['youtube.com', 'youtu.be', 'm.youtube.com'] and param.lower() == 't') 
+                or (param.lower() not in self.tracking_params):
                     cleaned_params[param] = values
                 else:
                     removed.append(param)
