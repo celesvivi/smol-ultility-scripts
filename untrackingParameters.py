@@ -4,6 +4,9 @@ Simple Silent URL Cleaner
 Removes tracking parameters from clipboard URLs and converts Twitter posts to fxtwitter
 Monitors clipboard for any changes (copy via Ctrl+C, right-click, etc.)
 Requirements: pip install pyperclip
+This is just a script and not a full fleshed program, just intended to use this for youtube and stuff and not actually fully customizable urls or links. 
+Use pyinstaller to turn it into .exe file (remmeber -w so that it doesn't create a cmdpromt). Also make a .bat file and snuck it in starting program folder so that you don't need to open this everyime (echo with EXIT) 
+(have encounter problem where the program just disappear without anything, so make this "version" to "hopefully" able (highly not since there is no line related to this shit) to see what went wrong) 
 """
 import pyperclip
 import time
@@ -244,4 +247,5 @@ def main():
     cleaner.run()
 
 if __name__ == "__main__":
+
     main()
