@@ -4,10 +4,8 @@ Simple Silent URL Cleaner
 Removes tracking parameters from clipboard URLs and converts Twitter posts to fxtwitter
 Monitors clipboard for any changes (copy via Ctrl+C, right-click, etc.)
 Requirements: pip install pyperclip
-This is just a script and not a full fleshed program, just intended to use this for youtube and stuff and not actually fully customizable urls or links. 
-Use pyinstaller to turn it into .exe file (remmeber -w so that it doesn't create a cmdpromt). Also make a .bat file and snuck it in starting program folder so that you don't need to open this everyime (echo with EXIT) 
-(have encounter problem where the program just disappear without anything, so make this "version" to "hopefully" able (highly not since there is no line related to this shit) to see what went wrong) 
 """
+import keyboard
 import pyperclip
 import time
 import re
@@ -55,12 +53,7 @@ class SilentURLCleaner:
             # YouTube
             'feature', 'kw', 'si', 'app', 'persist_app', 'noapp', 'has_verified',
             'list', 'index', 'pp', 'source_ve_path', 'ab_channel', 'autoplay',
-            
-            # Amazon
-            'tag', 'ref', 'ref_', 'pf_rd_m', 'pf_rd_s', 'pf_rd_r', 'pf_rd_t',
-            'pf_rd_p', 'pf_rd_i', 'pd_rd_i', 'pd_rd_r', 'pd_rd_w', 'pd_rd_wg',
-            'linkCode', 'camp', 'creative', 'creativeASIN', 'ascsubtag',
-            
+
             # Others
             'msclkid', 'cvid', 'trk', 'trkInfo', 'li_fat_id', 'lipi',
             'utm_name', 'rdt_cid', 'share_id', 'context',
@@ -77,16 +70,36 @@ class SilentURLCleaner:
             'instagram.com', 'm.instagram.com',
             'linkedin.com', 'm.linkedin.com',
             'reddit.com', 'old.reddit.com',
-            'tiktok.com', 'vm.tiktok.com',
-            'amazon.com', 'smile.amazon.com',
-            'pinterest.com', 'pin.it'
+            'pixiv.com'
         ]
         
+        self.domain_to_name = {
+            "twitter": ["twitter.com", "x.com", "mobile.twitter.com"],
+            "pixiv": "pixiv.net"
+        }
+
+        self.raw_cdomain = {}
+        for key, values in self.domain_to_name.items():
+            for value in values:
+                self.raw_cdomain[value] = key 
+        
+
+        self.converted_domains = {
+            "twitter": "fxtwitter.com",
+            "pixiv": "phixiv.net"
+        }
+        self.convert_condition = {
+            "twitter": "status",
+            "pixiv": "artworks"
+        }
+
         # Log startup
         self.log("=" * 50)
         self.log("URL Cleaner Service started")
         self.log(f"Log file location: {self.log_file}")
         self.log(f"Executable directory: {self.app_dir}")
+
+        #keyboard.add_hotkey('ctrl+alt+v', copy_hotkey)
     
     def log(self, message):
         """Write message to log file with timestamp"""
@@ -127,8 +140,7 @@ class SilentURLCleaner:
     def clean_url(self, url):
         """Remove tracking parameters from URL"""
         try:
-            parsed = urlparse(url)
-            query_params = parse_qs(parsed.query)
+            query_params = parse_qs(url.query)
             cleaned_params = {}
             removed = []
             
@@ -146,64 +158,66 @@ class SilentURLCleaner:
             # Rebuild URL
             new_query = urlencode(cleaned_params, doseq=True)
             cleaned_url = urlunparse((
-                parsed.scheme, parsed.netloc, parsed.path,
-                parsed.params, new_query, parsed.fragment
+                parsed.scheme, 
+                parsed.netloc, 
+                parsed.path,
+                parsed.params, 
+                new_query, 
+                parsed.fragment
             ))
             
             return cleaned_url, removed
             
         except:
             return url, []
-    
-    def convert_twitter_to_fxtwitter(self, url):
-        """Convert Twitter/X post URLs to fxtwitter URLs"""
-        try:
-            parsed = urlparse(url)
-            domain = parsed.netloc.lower().replace('www.', '')
-            
-            # Check if it's a Twitter/X domain and contains /status/
-            if domain in ['twitter.com', 'x.com', 'mobile.twitter.com'] and '/status/' in parsed.path:
-                # Replace domain with fxtwitter.com
-                converted_url = urlunparse((
-                    parsed.scheme, 'fxtwitter.com', parsed.path,
-                    parsed.params, parsed.query, parsed.fragment
-                ))
-                return converted_url, True
-            
-            return url, False
-            
-        except:
-            return url, False
-    
+
+
     def process_clipboard(self, current):
         """Process clipboard content"""
         try:
             if self.is_url(current) and self.is_supported_platform(current):
                 self.log(f"Valid URL detected: {current[:100]}...")
                 
+                parsed = urlparse(current)
+
                 # Clean tracking parameters
                 cleaned, removed = self.clean_url(current)
-                
-                # Convert Twitter posts to fxtwitter
-                final_url, was_converted = self.convert_twitter_to_fxtwitter(cleaned)
-                
-                # Update clipboard if any changes were made
-                if removed or was_converted:
-                    pyperclip.copy(final_url)
-                    
-                    changes = []
-                    if removed:
-                        changes.append(f"removed {len(removed)} tracking params: {', '.join(removed[:5])}")
-                    if was_converted:
-                        changes.append("converted to fxtwitter")
-                    
+                #parsed again for domain convertion
+                parsed_cleanUrl = urlparse(cleaned)
+                was_converted = False
+
+                domain = parsed_cleanUrl.netloc.lower().replace('www.', '')
+                domain_name = self.raw_cdomain.get(domain, 0)
+                if (domain_name):
+                    if (self.convert_condition.get(domain_name) in parsed_cleanUrl.path):
+                            was_converted = True
+                            final_url = urlunparse((
+                                parsed_cleanUrl.scheme, 
+                                self.converted_domains.get(domain_name), 
+                                parsed_cleanUrl.path, 
+                                parsed_cleanUrl.params, 
+                                parsed_cleanUrl.query, 
+                                parsed_cleanUrl.fragment))
+
+                #Log
+                changes = []
+                if removed:
+                    changes.append(f"removed {len(removed)} tracking params: {', '.join(removed[:5])}")
+                if was_converted:
+                    changes.append("converted the link")
+                if (changes != []):
                     self.log(f"✓ URL cleaned! ({', '.join(changes)})")
                     self.log(f"  Final URL: {final_url}")
+
+                if was_converted:
+                    pyperclip.copy(final_url)
+                    return True
+                elif removed:
+                    pyperclip.copy(cleaned)
                     return True
                 else:
                     self.log("URL is already clean - no changes needed")
-                    return False
-            
+                    return False 
             return False
             
         except Exception as e:
@@ -231,7 +245,7 @@ class SilentURLCleaner:
                 
             except:
                 pass
-    
+
     def run(self):
         """Main execution method"""
         try:
@@ -241,11 +255,9 @@ class SilentURLCleaner:
             
         except:
             pass
-
 def main():
     cleaner = SilentURLCleaner()
     cleaner.run()
 
 if __name__ == "__main__":
-
     main()
